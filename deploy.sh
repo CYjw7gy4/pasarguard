@@ -13,14 +13,15 @@
 # "pasarguard-data" and is never deleted by this script.
 # ---------------------------------------------------------------------------
 set -Eeuo pipefail
-cd -- "$(dirname -- "$0")"
+SELF="$(cd -- "$(dirname -- "$0")" && pwd)/$(basename -- "$0")"
+cd -- "$(dirname -- "$SELF")"
 
 MODE=""
 PORT_OVERRIDE=""
 ACTION="up"
 
 usage() {
-  sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+  awk 'NR==1{next} /^#/{sub(/^# ?/,""); print; next} {exit}' "$SELF"
   exit "${1:-0}"
 }
 
@@ -53,7 +54,10 @@ command -v curl >/dev/null || die "curl is required."
 # ---------------------------------------------------------------- .env handling
 random_password() {
   # 20 chars, alphanumeric only, no ambiguous characters.
-  LC_ALL=C tr -dc 'A-Za-z2-9' </dev/urandom | head -c 20
+  # Read a fixed chunk first so no pipe gets SIGPIPE under `set -o pipefail`.
+  local chunk
+  chunk=$(head -c 8192 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z2-9' || true)
+  printf '%s' "${chunk:0:20}"
 }
 
 detect_host() {
@@ -165,23 +169,29 @@ if ((ready == 0)); then
 fi
 
 # ---------------------------------------------------------------- summary
+ADMIN_USER=$(sed -n 's/^ADMIN_USERNAME=//p' .env | tail -1); ADMIN_USER=${ADMIN_USER:-admin}
+ADMIN_PASS=$(sed -n 's/^ADMIN_PASSWORD=//p' .env | tail -1)
+line="════════════════════════════════════════════════════════════"
+printf '\n\033[32m%s\033[0m\n' "$line"
 cat <<EOF
-
-\033[32m════════════════════════════════════════════════════════════\033[0m
   PasarGuard is up.
 
   Panel      : ${SCHEME}://${HOST}:${PORT}/
   Dashboard  : ${SCHEME}://${HOST}:${PORT}/TeamGuccI/pasarguard/
-  Username   : admin
-  Password   : $(sed -n 's/^ADMIN_PASSWORD=//p' .env | tail -1)
+  Username   : ${ADMIN_USER}
+  Password   : ${ADMIN_PASS}
 
-  Open TCP ${PORT} and UDP ${PORT} in your firewall / provider security group.
-  $([[ $SCHEME == https ]] && echo "The certificate is self-signed — your browser will warn once.")
-  $([[ $SCHEME == http  ]] && echo "WARNING: HTTP is unencrypted. Put it behind a TLS reverse proxy for real use.")
+  Open TCP ${PORT} and UDP ${PORT} in your firewall / security group.
+EOF
+if [[ $SCHEME == https ]]; then
+  echo "  The certificate is self-signed — the browser will warn once."
+else
+  echo "  WARNING: HTTP is unencrypted. Put it behind a TLS reverse proxy for real use."
+fi
+cat <<EOF
 
   Logs    : sudo ./deploy.sh --logs
   Update  : git pull && sudo ./deploy.sh --update
   Stop    : sudo ./deploy.sh --down
-\033[32m════════════════════════════════════════════════════════════\033[0m
-
 EOF
+printf '\033[32m%s\033[0m\n\n' "$line"
