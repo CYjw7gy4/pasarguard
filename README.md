@@ -115,6 +115,34 @@ Then set `SERVER_IP`/`PANEL_HOST` to the domain in `.env` and
 
 ---
 
+## 4. Deploying to a PaaS (Railway)
+
+This repo ships everything Railway needs: `nixpacks.toml` + `railway-bootstrap.sh`.
+Upload the repo to GitHub, then:
+
+1. **New Project → Deploy from GitHub repo → `<you>/pasarguard`**.
+2. Service **Settings → Source**: branch `main`; **Builder: Nixpacks** (a
+   `Dockerfile` also exists in the repo — if Railway picks it, switch to
+   Nixpacks so the platform's `$PORT` is used).
+3. **Variables**: `ADMIN_PASSWORD` (required), optionally `ADMIN_USERNAME`,
+   `TCP_ONLY=true`, `DISABLE_UDP=1`.
+4. **Volumes → Add volume**, mount path **`/persistent`** (without it the panel
+   refuses to start; all data lives there).
+5. **Settings → Networking → Generate domain**. Railway gives you
+   `https://<project-name>.up.railway.app` and injects `PORT` + `RAILWAY_PUBLIC_DOMAIN`.
+
+`railway-bootstrap.sh` then does the first-run setup once per volume: Python 3.14
+runtime, pinned wheels, the checksum-verified `vpn-ui` binary, `server-config.json`
+and the panel gateway. Restarts reuse the markers in `/persistent`, so they are fast.
+
+Panel: `https://<name>.up.railway.app/TeamGuccI/` — Subscriptions:
+`https://<name>.up.railway.app/sub/<sub-id>`
+
+> **Railway only publishes one TCP port — there is no UDP.** `TCP_ONLY=true`
+> makes every node/protocol fall back to TCP, so WireGuard and anything else
+> UDP-only cannot work on Railway. For real UDP use a VPS with Docker
+> (section 2); the same repo works there unchanged.
+
 ## 4. Deploying to a PaaS
 
 The same image runs on any Docker host.

@@ -1,0 +1,14 @@
+# Railway build: install pinned Python + fetch the vpn-ui binary.
+# Node 22 is the runtime the gateway expects.
+[phases.setup]
+nixPkgs = ["nodejs_22", "python311", "curl", "bash", "gnumake", "gcc", "zlib", "openssl", "unzip", "procps"]
+aptPkgs = ["ca-certificates"]
+
+[phases.install]
+dependsOn = ["setup"]
+cmds = [
+  "echo '[railway] runtime prepared, node:' $(node --version)",
+]
+
+[start]
+cmd = "bash railway-bootstrap.sh"
