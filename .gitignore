@@ -1,0 +1,37 @@
+# ---- secrets & local state -------------------------------------------------
+.env
+.env.*
+!.env.example
+.katapanel-secret
+*.ovpn
+*.pem
+*.key
+*.p12
+*.pfx
+.git-credentials
+
+# ---- databases & runtime volumes ------------------------------------------
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+!native-fresh.db
+**/data/
+**/backups/
+**/persistent/
+state.json
+
+# ---- build / dependency artifacts -----------------------------------------
+**/pylibs/
+**/node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+dist/
+build/
+.railway/
+.DS_Store
+*.log

@@ -1,0 +1,52 @@
+name: pasarguard
+
+services:
+  pasarguard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pasarguard-panel:local
+    platform: linux/amd64
+    container_name: pasarguard
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Everything the container needs is derived from .env, so a fork only has
+      # to edit one file. Empty values fall back to the defaults below.
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is missing in .env}
+      SERVER_IP: ${SERVER_IP:?SERVER_IP is missing in .env}
+      PANEL_HOST: ${PANEL_HOST:-${SERVER_IP}}
+      SERVER_PORT: ${VPN_PORT:-20004}
+      PORT: ${VPN_PORT:-20004}
+      RAILWAY_ADVERTISED_PORT: ${VPN_PORT:-20004}
+      RAILWAY_VOLUME_MOUNT_PATH: /persistent
+      PG_MANAGED_SUB_ORIGIN: ${SUB_SCHEME:-https}://${PANEL_HOST:-${SERVER_IP}}:${VPN_PORT:-20004}
+      PUBLIC_TLS: ${PUBLIC_TLS:-1}
+      PYTHONDONTWRITEBYTECODE: "1"
+      TZ: ${TZ:-UTC}
+    volumes:
+      - pasarguard-data:/persistent
+    ports:
+      - "${VPN_PORT:-20004}:${VPN_PORT:-20004}/tcp"
+      - "${VPN_PORT:-20004}:${VPN_PORT:-20004}/udp"
+    # The panel writes large databases and node binaries; give it room and keep
+    # the container from being OOM-killed on small VPSes.
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "curl -fsS -k -o /dev/null http://127.0.0.1:${VPN_PORT:-20004}/ || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+volumes:
+  pasarguard-data:
